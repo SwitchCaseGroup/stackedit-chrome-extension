@@ -13,7 +13,7 @@ const styleContent = `
   background: no-repeat url("${chrome.runtime.getURL('icon.svg')}");
   background-size: ${buttonSize}px ${buttonSize}px;
   cursor: pointer;
-  opacity: 0.5;
+  opacity: 0.9;
   transition: opacity 0.5s;
 }
 
@@ -109,7 +109,7 @@ settings.getSites()
       const buttonEl = document.createElement('span');
       buttonEl.className = 'stackedit-open-button';
       buttonEl.title = 'Edit with StackEdit';
-      document.querySelector("textarea.file-editor-textarea ~ div.CodeMirror").parentNode.appendChild(buttonEl);
+      document.querySelector("textarea.file-editor-textarea ~ div.CodeMirror").parentNode.parentNode.prepend(buttonEl);
 
       buttonEl.addEventListener('click', () => {
         const stackedit = new Stackedit({
@@ -159,6 +159,7 @@ settings.getSites()
       decorateAll(preset);
 
       if(site.url == 'https://github.com/'){
+        console.log('on GitHub: going to decorateGitHubCodeMirror');
         decorateGitHubCodeMirror(preset);
       }
 
