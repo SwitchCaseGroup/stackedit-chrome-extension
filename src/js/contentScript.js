@@ -13,7 +13,7 @@ const styleContent = `
   background: no-repeat url("${chrome.runtime.getURL('icon.svg')}");
   background-size: ${buttonSize}px ${buttonSize}px;
   cursor: pointer;
-  opacity: 0.5;
+  opacity: 0.9;
   transition: opacity 0.5s;
 }
 
@@ -83,6 +83,66 @@ settings.getSites()
       }
     }
 
+    function decorateGitHubCodeMirror(preset) {
+
+      // Inject listeners needed to communicate with CodeMirror
+      var injectedCode = `// Code here.
+      document.addEventListener('stackeditCodeMirrorSetValueEvent', function (e) {
+        var data = e.detail;
+        let cm = document.querySelector(data.selector).CodeMirror;
+        cm.setValue(data.text);
+      });
+
+      document.addEventListener('stackeditCodeMirrorGetValueEvent', function (e) {
+        var data = e.detail;
+        let cm = document.querySelector(data.selector).CodeMirror;
+        data.text = cm.getValue();
+        document.dispatchEvent(new CustomEvent(data.cb, { detail: data }));
+      });
+      `;
+      var script = document.createElement('script');
+      script.textContent = injectedCode;
+      document.documentElement.appendChild(script);
+      script.remove();
+
+      // Add Button with logic to do editing
+      const buttonEl = document.createElement('span');
+      buttonEl.className = 'stackedit-open-button';
+      buttonEl.title = 'Edit with StackEdit';
+      document.querySelector("textarea.file-editor-textarea ~ div.CodeMirror").parentNode.parentNode.prepend(buttonEl);
+
+      buttonEl.addEventListener('click', () => {
+        const stackedit = new Stackedit({
+          url: chrome.runtime.getURL('frame.html'),
+        });
+        stackedit.on('fileChange', (file) => {
+          let newContents = file.content.text;
+          let data = {
+            selector: "textarea.file-editor-textarea ~ div.CodeMirror",
+            text: newContents
+          };
+          document.dispatchEvent(new CustomEvent('stackeditCodeMirrorSetValueEvent', { detail: data }));
+        });
+
+        let eventData = {
+          cb: `cb_${Math.floor(Math.random()*1000001)}`,
+          selector: "textarea.file-editor-textarea ~ div.CodeMirror"
+        };
+        document.addEventListener(eventData.cb, function (e) {
+          let data = e.detail;
+          stackedit.openFile({
+            name: window.location.hostname,
+            content: {
+              text: data.text,
+              properties: preset,
+            }
+          });
+        });
+        document.dispatchEvent(new CustomEvent('stackeditCodeMirrorGetValueEvent', { detail: eventData }));
+
+      });
+    }
+
     sites.some((site) => {
       if (!window.location.href.match(site.regex)) {
         return false;
@@ -97,6 +157,12 @@ settings.getSites()
       });
       window.addEventListener('resize', () => decorateAll(preset));
       decorateAll(preset);
+
+      if(site.url == 'https://github.com/'){
+        console.log('on GitHub: going to decorateGitHubCodeMirror');
+        decorateGitHubCodeMirror(preset);
+      }
+
       return true;
     });
   });
